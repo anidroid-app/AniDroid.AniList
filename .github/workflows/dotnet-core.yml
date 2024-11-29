@@ -1,0 +1,47 @@
+name: .NET Core
+
+on:
+  push:
+    branches: [ master ]
+    tags: [ \* ]
+  pull_request:
+    branches: [ master ]
+  create:
+    tags: [ \* ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+      
+    - name: Setup .NET Core
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: 3.1.301
+    
+    - name: Install dependencies
+      if: steps.cache.outputs.cache-hit != 'true'
+      run: dotnet restore
+    
+    - name: Build
+      run: dotnet build --configuration Release --no-restore
+    
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v1
+      with:
+        name: Anidroid.Anilist
+        path: "${{ github.workspace }}AniDroid.AniList/bin/Release"
+        
+  deploy:
+    needs: [build]
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: Anidroid.Anilist
+
+      - name: Publish Nuget Package
+        run: dotnet nuget push ${{ github.workspace }}/*.nupkg --skip-duplicate --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json
